@@ -1,0 +1,11 @@
+{
+  "name": "pokerbot",
+  "version": "1.0.0",
+  "description": "poker bot",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "author": "Hubert Yuan",
+  "license": "ISC"
+}
