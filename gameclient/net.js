@@ -74,7 +74,9 @@ class CalcServ{
         for(let hand of ALL_HANDS){
             ret.push(0);
         }
+        console.log(`sending to calcserver REQUEST VILLAINS ${hand} ${board}`)
         let str = await this.request(`REQUEST VILLAINS ${hand} ${board}`);
+        console.log("got reply");
         let strs = str.split("\n");
         for(let s of strs){
             s = s.trim();

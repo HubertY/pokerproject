@@ -79,7 +79,7 @@ void sendVillains(string hero, string board)
 
 void handleMessage(string s)
 {
-    cout << "CALCSERV: received " << s << endl;
+    //cout << "CALCSERV: received " << s << endl;
     stringstream ss;
     ss << s;
     int i = 0;

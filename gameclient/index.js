@@ -61,7 +61,7 @@ function getPostFlopProbMultiplier(stake, bet, baseeqs, raise = false){
     let q = 5;
     if(raise){
         thresh = thresh + 0.4 * (1 - stake / bet);
-        console.log(stake, bet, thresh);
+        //console.log(stake, bet, thresh);
         q = 10;
     }
     let ret = baseeqs.map(x=>x>=thresh ? q : 1);
@@ -78,7 +78,6 @@ function cutOff20k(n){
 async function process(gameString) {
     return new Promise(async (resolve) => {
         let timeout = true;
-        let action = "c";
         setTimeout(() => {
             if (timeout) {
                 console.log("WARNING: TIMEOUT");
@@ -91,7 +90,16 @@ async function process(gameString) {
         const position = parseInt(pos);
         const opposition = position ? 0 : 1;
         const cardsTokens = cards.split("/");
-        let hand = parseHand(cardsTokens[0].split("|")[position]);
+        let handarray = cardsTokens[0].split("|");
+        let hand = parseHand(handarray[position]);
+
+        if (handarray[opposition].length) {
+            console.log("can see opponent's cards; hand is over");
+            timeout = false;
+            resolve();
+            return;
+        }
+
         const rounds = betting.split("/").map((round) => {
             const roundTokens = round.replace(/[a-z]/g, "$$$&").split("$");
             let ret = [];
@@ -112,23 +120,25 @@ async function process(gameString) {
             return ret;
         });
         const currRound = rounds[rounds.length - 1];
-        if (cards.split("/")[0].split("|")[opposition].length) {
-            console.log(`opponent cards ${cardsTokens[0].split("|")[opposition]}`);
-            resolve();
-        }
-        else if (currRound.length && currRound[currRound.length - 1].type === "f") {
-            //its over
+
+        if (currRound.length && currRound[currRound.length - 1].type === "f") {
+            console.log('fold occurred, round is over');
+            timeout = false;
             resolve();
         }
         else if (rounds.length === 1 && currRound.length % 2 === position || rounds.length > 1 && currRound.length % 2 !== position) {
-            //not my turn
+            console.log("not my turn");
+            timeout = false;
             resolve();
         }
         else if (rounds.length === 1) {
             //PREFLOP
+            console.log("taking preflop action");
+            timeout = false;
             resolve(playPreflop(hand, rounds[0], position));
         }
         else if (rounds.length > 1) {
+            console.log("taking postflop action");
             if(rounds[1].length === 0){
                 pftracker.feed(rounds[0], opposition);
             }
@@ -157,7 +167,6 @@ async function process(gameString) {
             let bet = 100;
             let minraise = 100;
             for(let action of rounds[0]){
-                console.log(stake, bet);
                 if(action.type === "c"){
                     stake = bet;
                 }
@@ -169,7 +178,6 @@ async function process(gameString) {
             }
             for(let i = 1; i < rounds.length; i++){
                 for(let j = 0; j < rounds[i].length; j++){
-                    console.log(stake, bet);
                     let action = rounds[i][j];
                     let oppoturn = j % 2 == opposition;
                     if(action.type === "c"){
@@ -189,6 +197,7 @@ async function process(gameString) {
                 }
             }
 
+            let action = "c";
             let villaineqdist = multiply(normalize(multiply(mask(eqs), multiply(p1,p2))), eqs);
             let finaleqestimate = 1-sum(villaineqdist);
             let eqthresh = equityThreshold(stake, bet);
@@ -219,9 +228,9 @@ async function process(gameString) {
             if(action === "r20000" && bet === 20000){
                 action = "c";
             }
+            timeout = false;
             resolve(action);
         }
-        timeout = false;
     });
 }
 
@@ -245,7 +254,7 @@ async function main(delay = 1000) {
 
     calcserv = new CalcServ(calc);
 
-    console.log(await process("MATCHSTATE:1:0:cr200c/cc/cc/r7748:|9hQd/8dAs8s/4h"));
+    //console.log(await process("MATCHSTATE:1:0:cr200c/cc/cc/r7748:|9hQd/8dAs8s/4h"));
 
     console.log("connecting to game server...");
     const game = new TCPConnection(config.gameServer);
@@ -257,9 +266,12 @@ async function main(delay = 1000) {
     while (true) {
         const msg = (await game.nextMessage()).trim();
         console.log(`RECEIVED: ${msg}`);
-        const response = await process(msg);
-        if (response) {
-            game.sendMessage(`${msg}:${response}\r\n`);
+        if(msg[0] !== "#" && msg[0] !== ";"){
+            const response = await process(msg);
+            if (response && response.length) {
+                console.log(`SENDING: ${response}`);
+                game.sendMessage(`${msg}:${response}\r\n`);
+            }
         }
     }
 }
