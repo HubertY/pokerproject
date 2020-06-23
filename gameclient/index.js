@@ -1,10 +1,10 @@
-const {TCPConnection, CalcServ} = require("./net.js")
-const {PreflopTracker, getPreflopPosterior, playPreflop} = require("./preflop.js")
-const {fs, FACES, SUITS, ALL_CARDS, CARD_ID, ALL_HANDS, HAND_ID, PREFLOP_HANDS, PREFLOP_EQUITY, PREFLOP_HAND_ID, initConstants} = require("./constants.js");
-const {sum, scale, normalize, multiply, mask} = require("./util.js");
+const { TCPConnection, CalcServ } = require("./net.js")
+const { PreflopTracker, playPreflop } = require("./preflop.js")
+const { fs, FACES, SUITS, ALL_CARDS, CARD_ID, ALL_HANDS, HAND_ID, PREFLOP_HANDS, PREFLOP_EQUITY, PREFLOP_HAND_ID, initConstants } = require("./constants.js");
+const { sum, scale, normalize, multiply, mask } = require("./util.js");
 
-async function sleep(ms){
-    return new Promise((resolve)=>{
+async function sleep(ms) {
+    return new Promise((resolve) => {
         setTimeout(resolve, ms);
     });
 }
@@ -25,50 +25,50 @@ function reorderFlop(flop) {
 }
 
 //return suit permutation to c d h s order
-function permuteSuits(cards){
+function permuteSuits(cards) {
     let ret = {};
     let suitsLeft = ["s", "h", "d", "c"];
-    for(let i = 0; i < cards.length; i+=2){
-        let suit = cards[i+1];
-        if(ret[suit] === undefined){
+    for (let i = 0; i < cards.length; i += 2) {
+        let suit = cards[i + 1];
+        if (ret[suit] === undefined) {
             ret[suit] = suitsLeft.pop();
         }
     }
-    for(let suit of SUITS){
-        if(ret[suit] === undefined){
+    for (let suit of SUITS) {
+        if (ret[suit] === undefined) {
             ret[suit] = suitsLeft.pop();
         }
     }
     return ret;
 }
 
-function applySuitPermutation(cards, permutation){
+function applySuitPermutation(cards, permutation) {
     let ret = "";
-    for(let i = 0; i < cards.length; i+=2){
+    for (let i = 0; i < cards.length; i += 2) {
         ret += cards[i];
-        ret += permutation[cards[i+1]];
+        ret += permutation[cards[i + 1]];
     }
     return ret;
 }
 
 //ex 50/100 -> 0.25 equity needed to call
-function equityThreshold(stake, bet){
-    return (bet-stake)/bet/2;
+function equityThreshold(stake, bet) {
+    return (bet - stake) / bet / 2;
 }
 
-function getPostFlopProbMultiplier(stake, bet, baseeqs, raise = false){
+function getPostFlopProbMultiplier(stake, bet, baseeqs, raise = false) {
     let thresh = equityThreshold(stake, bet);
     let q = 5;
-    if(raise){
+    if (raise) {
         thresh = thresh + 0.4 * (1 - stake / bet);
         //console.log(stake, bet, thresh);
         q = 10;
     }
-    let ret = baseeqs.map(x=>x>=thresh ? q : 1);
+    let ret = baseeqs.map(x => x >= thresh ? q : 1);
     return ret;
 }
 
-function cutOff20k(n){
+function cutOff20k(n) {
     return n > 20000 ? 20000 : n;
 }
 
@@ -139,14 +139,14 @@ async function process(gameString) {
         }
         else if (rounds.length > 1) {
             console.log("taking postflop action");
-            if(rounds[1].length === 0){
+            if (rounds[1].length === 0) {
                 pftracker.feed(rounds[0], opposition);
             }
             //POSTFLOP
 
             let board = reorderFlop(cardsTokens[1]);
-            for(let i = 2; i < cardsTokens.length; i++){
-                if(cardsTokens[i].trim().length){
+            for (let i = 2; i < cardsTokens.length; i++) {
+                if (cardsTokens[i].trim().length) {
                     board += cardsTokens[i].trim();
                 }
             }
@@ -160,34 +160,34 @@ async function process(gameString) {
 
 
             let p1 = pftracker.query(rounds[0], opposition);
-            let p2 = ALL_HANDS.map(x=>1);
+            let p2 = ALL_HANDS.map(x => 1);
 
 
-            let stake = 50; 
+            let stake = 50;
             let bet = 100;
             let minraise = 100;
-            for(let action of rounds[0]){
-                if(action.type === "c"){
+            for (let action of rounds[0]) {
+                if (action.type === "c") {
                     stake = bet;
                 }
-                else if(action.type === "r"){
+                else if (action.type === "r") {
                     minraise = action.value - bet;
                     stake = bet;
                     bet = action.value;
                 }
             }
-            for(let i = 1; i < rounds.length; i++){
-                for(let j = 0; j < rounds[i].length; j++){
+            for (let i = 1; i < rounds.length; i++) {
+                for (let j = 0; j < rounds[i].length; j++) {
                     let action = rounds[i][j];
                     let oppoturn = j % 2 == opposition;
-                    if(action.type === "c"){
-                        if(oppoturn){
+                    if (action.type === "c") {
+                        if (oppoturn) {
                             p2 = multiply(p2, getPostFlopProbMultiplier(stake, bet, baseeqs));
                         }
                         stake = bet;
                     }
-                    else if(action.type === "r"){
-                        if(oppoturn){
+                    else if (action.type === "r") {
+                        if (oppoturn) {
                             p2 = multiply(p2, getPostFlopProbMultiplier(stake, action.value, baseeqs, true));
                         }
                         minraise = action.value - bet;
@@ -198,34 +198,34 @@ async function process(gameString) {
             }
 
             let action = "c";
-            let villaineqdist = multiply(normalize(multiply(mask(eqs), multiply(p1,p2))), eqs);
-            let finaleqestimate = 1-sum(villaineqdist);
+            let villaineqdist = multiply(normalize(multiply(mask(eqs), multiply(p1, p2))), eqs);
+            let finaleqestimate = 1 - sum(villaineqdist);
             let eqthresh = equityThreshold(stake, bet);
-            if(finaleqestimate < eqthresh){
-                if(Math.random() > finaleqestimate/eqthresh){
+            if (finaleqestimate < eqthresh) {
+                if (Math.random() > finaleqestimate / eqthresh) {
                     action = "f";
                 }
-                else{
+                else {
                     action = "c";
                 }
             }
-            else{
+            else {
                 action = "c";
-                if(finaleqestimate > 0.8){
-                    if(Math.random() < finaleqestimate){
+                if (finaleqestimate > 0.8) {
+                    if (Math.random() < finaleqestimate) {
                         action = "r" + cutOff20k(Math.floor(bet * 3));
                     }
                 }
-                if(finaleqestimate > 0.5){
-                    if(Math.random() < finaleqestimate){
+                if (finaleqestimate > 0.5) {
+                    if (Math.random() < finaleqestimate) {
                         action = "r" + cutOff20k(Math.floor(bet * 1.5));
                     }
                 }
             }
-            if(rounds.length === 2 && action === "c" && Math.random() > 0.9){
-                    action = "r" + cutOff20k(bet * 3);
+            if (rounds.length === 2 && action === "c" && Math.random() > 0.9) {
+                action = "r" + cutOff20k(bet * 3);
             }
-            if(action === "r20000" && bet === 20000){
+            if (action === "r20000" && bet === 20000) {
                 action = "c";
             }
             timeout = false;
@@ -238,7 +238,7 @@ async function process(gameString) {
 
 async function main(delay = 1000) {
     await sleep(delay);
-    
+
     console.log("reading config.json...");
     const config = JSON.parse(fs.read("config.json"));
     if (!config || !config.calcServer || !config.gameServer) {
@@ -264,13 +264,18 @@ async function main(delay = 1000) {
     await game.sendMessage("VERSION:2.0.0\r\n");
 
     while (true) {
-        const msg = (await game.nextMessage()).trim();
-        console.log(`RECEIVED: ${msg}`);
-        if(msg[0] !== "#" && msg[0] !== ";"){
-            const response = await process(msg);
-            if (response && response.length) {
-                console.log(`SENDING: ${response}`);
-                game.sendMessage(`${msg}:${response}\r\n`);
+        const msgs = (await game.nextMessage()).trim().split("\n");
+        for (let msg of msgs) {
+            msg = msg.trim();
+            if (msg.length) {
+                console.log(`RECEIVED: ${msg}`);
+                if (msg[0] !== "#" && msg[0] !== ";") {
+                    const response = await process(msg);
+                    if (response && response.length) {
+                        console.log(`SENDING: ${response}`);
+                        game.sendMessage(`${msg}:${response}\r\n`);
+                    }
+                }
             }
         }
     }
