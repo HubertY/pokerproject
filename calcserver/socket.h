@@ -73,7 +73,7 @@ void sendVillains(string hero, string board)
             ret += "\n";
         }
     }
-
+    cout << "sending response to VILLAINS " << hero << " " << board << " " << ret.length() << endl;
     sendMessage(ret);
 }
 
@@ -115,7 +115,9 @@ void awaitMessage()
 {
     char buffer[1024] = {0};
     int valread = read(new_socket, buffer, 1024);
-    handleMessage(string(buffer));
+    cout << "handling " << string(buffer) << " in new thread" << endl;
+    thread t(handleMessage, string(buffer));
+    t.detach();
 }
 
 void initializeSocket(int port)

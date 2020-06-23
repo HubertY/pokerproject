@@ -37,6 +37,7 @@ class TCPConnection {
             data = data.toString();
             if (this.hook) {
                 this.hook(data);
+                this.hook = null;
             }
             else {
                 this.dataQueue.unshift(data);

@@ -21,7 +21,7 @@ function parseHand(hand) {
 //sort descending
 function reorderFlop(flop) {
     let cards = [flop.slice(0, 2), flop.slice(2, 4), flop.slice(4, 6)].sort((h1, h2) => CARD_ID[h2] - CARD_ID[h1]);
-    return cards[0] + cards[1] + cards[2];
+    return cards[0] + cards[1] + cards[2] + flop.slice(6);
 }
 
 //return suit permutation to c d h s order
@@ -44,11 +44,17 @@ function permuteSuits(cards) {
 
 function applySuitPermutation(cards, permutation) {
     let ret = "";
+
+    //SUPER SPECIAL EDGE CASE :O
+    if (cards[0] === cards[2] && cards[5] === cards[1]) {
+        cards = cards.slice(0,5) + cards[3] + cards.slice(6);
+    }
+    
     for (let i = 0; i < cards.length; i += 2) {
         ret += cards[i];
         ret += permutation[cards[i + 1]];
     }
-    return ret;
+    return reorderFlop(ret);
 }
 
 //ex 50/100 -> 0.25 equity needed to call
@@ -78,12 +84,12 @@ function cutOff20k(n) {
 async function process(gameString) {
     return new Promise(async (resolve) => {
         let timeout = true;
-        setTimeout(() => {
-            if (timeout) {
-                console.log("WARNING: TIMEOUT");
-                resolve("c");
-            }
-        }, 6500); //definitely resolves within 6.5 seconds, just call if it times out
+        // setTimeout(() => {
+        //     if (timeout) {
+        //         console.log("WARNING: TIMEOUT");
+        //         resolve("c");
+        //     }
+        // }, 6500); //definitely resolves within 6.5 seconds, just call if it times out
 
         const [_, pos, handNumber, betting, cards] = gameString.split(":");
 

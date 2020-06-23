@@ -61,7 +61,7 @@ int main() {
     int port = std::stoi(_port.substr(1, _port.length() - 2));
     cout << ip << ":" << port << endl;
 
-    cout << "intializing constants..." << endl;
+    cout << "initializing constants..." << endl;
     initConstants();
 
     initializeSocket(port);
