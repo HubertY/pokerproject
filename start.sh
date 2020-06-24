@@ -1,2 +1,3 @@
-calcserver/main &
-node gameclient/index.js &
+
+node gameclient/index.js $1 &
+calcserver/main $1 &

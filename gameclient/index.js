@@ -81,7 +81,7 @@ function cutOff20k(n) {
 /**
  * @param {string} gameString
  */
-async function process(gameString) {
+async function handle(gameString) {
     return new Promise(async (resolve) => {
         let timeout = true;
         // setTimeout(() => {
@@ -251,6 +251,11 @@ async function main(delay = 1000) {
         throw Error("config.json is invalid");
     }
 
+    if(process.argv && process.argv[2]){
+        config.gameServer.port = process.argv[2];
+        config.calcServer.port = `${parseInt(process.argv[2]) + 1}`;
+    }
+
     console.log("initializing constants");
     initConstants();
 
@@ -259,8 +264,6 @@ async function main(delay = 1000) {
     await calc.connect();
 
     calcserv = new CalcServ(calc);
-
-    //console.log(await process("MATCHSTATE:1:0:cr200c/cc/cc/r7748:|9hQd/8dAs8s/4h"));
 
     console.log("connecting to game server...");
     const game = new TCPConnection(config.gameServer);
@@ -276,7 +279,7 @@ async function main(delay = 1000) {
             if (msg.length) {
                 console.log(`RECEIVED: ${msg}`);
                 if (msg[0] !== "#" && msg[0] !== ";") {
-                    const response = await process(msg);
+                    const response = await handle(msg);
                     if (response && response.length) {
                         console.log(`SENDING: ${response}`);
                         game.sendMessage(`${msg}:${response}\r\n`);
@@ -286,6 +289,5 @@ async function main(delay = 1000) {
         }
     }
 }
-
 
 main();

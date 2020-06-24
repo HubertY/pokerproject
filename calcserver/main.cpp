@@ -38,7 +38,7 @@ void enummb(){
 }
 
 const string configDirectory = "config.json";
-int main() {
+int main(int argc, char* argv[]) {
     cout << "reading config.json" << endl;
     ifstream fin;
     fin.open(configDirectory);
@@ -59,6 +59,9 @@ int main() {
     }
     fin >> _port;
     int port = std::stoi(_port.substr(1, _port.length() - 2));
+    if(argc > 1){
+        port = atoi(argv[1]) + 1;
+    }
     cout << ip << ":" << port << endl;
 
     cout << "initializing constants..." << endl;
