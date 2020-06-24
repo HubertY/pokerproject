@@ -13,5 +13,7 @@ IP configurations are in ``config.json``. The calculation server is intended to 
 3. Edit ``config.json`` so it has the correct port number for the game server. The port number for the calculation server can be reassigned as well (default ``1337``).
 4. Run ``./start.sh``
 
+**new:** You can now run ``./start.sh [port]`` to run with game server on ``port`` and calculation server on ``port+1``.
+
 ``config.json`` is fragile, so be careful not to mess up the whitespace.
 If the client can't connect to the calculation server, try killing processes on the calculation server port ``fuser 1337 /tcp -k`` and running ``start.sh`` again.
